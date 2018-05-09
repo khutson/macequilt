@@ -67,6 +67,8 @@ brightness 0..1
 
 if __name__ == "__main__":
     np = ArtNeoPixel(Pin(15, Pin.OUT), 30)
+    print("Random for first half...")
+    np.random(lights=[i for i in range(np.n//2)])
     print("Fade...")
     np.fade()
     print("Bounce...")
@@ -77,4 +79,5 @@ if __name__ == "__main__":
     np.random()
     print("Clearing..")
     np.clear()
+
 
