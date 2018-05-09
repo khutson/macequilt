@@ -12,16 +12,18 @@ class ArtNeoPixel(NeoPixel):
         super().__init__(pin, n, bpp)
         print("{} lights on {}".format(self.n, self.pin))
 
-    def random(self, display_time=5000, sleep_time=100, brightness=0.1):
+    def random(self, display_time=5000, sleep_time=100, brightness=0.1, lights=None):
         """
 Randomly flashes all pixels.
 All times in milliseconds.
 brightness 0..1
         :rtype: None
         """
+        if lights is None:
+            lights = [ j for j in range(self.n)]
         # print("running random colors on {} lights".format(self.n))
         for i in range(display_time // sleep_time):
-            for j in range(self.n):
+            for j in lights:
                 col = tuple([int(c * brightness) for c in os.urandom(3)])
                 self[j] = col
             self.write()
