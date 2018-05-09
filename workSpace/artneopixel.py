@@ -6,7 +6,9 @@ import os
 
 class ArtNeoPixel(NeoPixel):
 
-    def __init__(self, pin, n, bpp=4):
+    def __init__(self, pin, n, bpp=3):
+        if type(pin) is int:
+            pin = Pin(pin, Pin.OUT)
         super().__init__(pin, n, bpp)
         print("{} lights on {}".format(self.n, self.pin))
 
@@ -20,9 +22,12 @@ brightness 0..1
         print("running random colors on {} lights".format(self.n))
 
         for i in range(display_time // sleep_time):
-            print("i={}".format(i))
+            # print("i={}".format(i))
             for j in range(self.n):
-                self[j] = tuple([int(i * brightness) for i in os.urandom(3)])
+                # print("j={}".format(j))
+                col = tuple([int(c * brightness) for c in os.urandom(3)])
+                # print("col={}".format(col))
+                self[j] = col
             self.write()
             time.sleep_ms(sleep_time)
         self.fill((0, 0, 0))
@@ -33,3 +38,4 @@ if __name__ == "__main__":
     np = ArtNeoPixel(Pin(15, Pin.OUT), 30)
     print("Random...")
     np.random()
+
