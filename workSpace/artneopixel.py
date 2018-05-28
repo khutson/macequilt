@@ -68,8 +68,8 @@ brightness 0..1
     def clear(self):
         self.fill((0,0,0))
         self.write()
-
-if __name__ == "__main__":
+        
+def run_test():
     np = ArtNeoPixel(Pin(15, Pin.OUT), 30)
     print("fade 10-14...")
     np.fade(cycles=4, color=(255,0,0), lights=[i for i in range(10,15)])
@@ -86,5 +86,9 @@ if __name__ == "__main__":
     np.random()
     print("Clearing..")
     np.clear()
+
+if __name__ == "__main__":
+    run_test()
+
 
 
