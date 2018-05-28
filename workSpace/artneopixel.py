@@ -50,16 +50,20 @@ brightness 0..1
             time.sleep_ms(pause_time)
 
 
-    def fade(self):
-        n = self.n
-        for i in range(0, 4 * 256, 8):
-            for j in range(n):
-                if (i // 256) % 2 == 0:
-                    val = i & 0xff
-                else:
-                    val = 255 - (i & 0xff)
-                self[j] = (val, 0, 0)
-            self.write()
+    def fade(self, cycles=1, color=(255,255,255), pause_time=10, lights=None):
+        if lights is None:
+            lights = [ i for i in range(self.n)]
+        n = len(lights)
+        for c in range(cycles):
+            for i in range(0, 2 * 256, 8):
+                for j in range(n):
+                    if (i // 256) % 2 == 0:
+                        val = i & 0xff
+                    else:
+                        val = 255 - (i & 0xff)
+                    self[lights[j]] = [val & v for v in color] 
+                self.write()
+                time.sleep_ms(pause_time)
 
     def clear(self):
         self.fill((0,0,0))
@@ -67,6 +71,9 @@ brightness 0..1
 
 if __name__ == "__main__":
     np = ArtNeoPixel(Pin(15, Pin.OUT), 30)
+    print("fade 10-14...")
+    np.fade(cycles=4, color=(255,0,0), lights=[i for i in range(10,15)])
+    
     print("Random for first half...")
     np.random(lights=[i for i in range(np.n//2)])
     print("Fade...")
