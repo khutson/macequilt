@@ -79,5 +79,7 @@ def run(pin_number=15,num_lights=30):
 if __name__ == "__main__":
    setup()
    run()
+   del np
+
 
 

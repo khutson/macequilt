@@ -4,12 +4,13 @@ import esp
 esp.osdebug(None)
 
 import wifi
-wifi.connect(repl=True)
+wifi.connect(repl=False)
 
 import gc
 gc.collect()
 #import webrepl
 #webrepl.start()
+
 
 
 

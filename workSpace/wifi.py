@@ -1,9 +1,15 @@
 import network
 import time
+import os
+os.debug(False)
 
 from wificonfig import ssids
 
+def status():
+    sta_if = network.WLAN(network.STA_IF)
+    print('network config:', sta_if.ifconfig())
 
+  
 def connect(ip=None, repl=False):
     sta_if = network.WLAN(network.STA_IF)
 
@@ -22,7 +28,7 @@ def connect(ip=None, repl=False):
                 break
 
     print('network config:', sta_if.ifconfig())
-    time.sleep(4)
+    # time.sleep(4)
 
     if repl and sta_if.isconnected():
         import webrepl
@@ -31,3 +37,4 @@ def connect(ip=None, repl=False):
 
 if __name__ == '__main__':
     connect()
+
