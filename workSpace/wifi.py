@@ -1,7 +1,7 @@
 import network
 import time
-import os
-os.debug(False)
+import esp
+esp.osdebug(None)
 
 from wificonfig import ssids
 
@@ -37,4 +37,5 @@ def connect(ip=None, repl=False):
 
 if __name__ == '__main__':
     connect()
+
 

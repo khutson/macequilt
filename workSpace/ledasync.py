@@ -3,7 +3,7 @@ import uasyncio as asyncio
 
 class LED_async():
     def __init__(self, led_no):
-        self.led = Pin(led_no)
+        self.led = Pin(led_no,Pin.OUT)
         self.rate = 0
         loop = asyncio.get_event_loop()
         loop.create_task(self.run())
@@ -26,10 +26,21 @@ class LED_async():
     def off(self):
         self.led.off()
         self.rate = 0
-
-if __name__ == '__main__':
-    led = LED_async(16)
+        
+async def test(pin=5,delay=10,rate=1):
+    led = LED_async(pin)
+    print('test-on')
     led.on()
-    asyncio.sleep_ms(1000)
+    print('waiting {} seconds'.format(delay))
+    await asyncio.sleep(delay)
+    print('test-rate={} per second'.format(rate))
+    led.flash(rate)
+    print('waiting {} seconds'.format(delay))
+    await asyncio.sleep(delay)
+    print('test-off')
     led.off()
     
+if __name__ == '__main__':
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(test())  
+

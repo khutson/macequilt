@@ -118,26 +118,28 @@ brightness 0..1
         self.fill((0,0,0))
         self.write()
         
-def run_test():
+async def test():
     np = ArtNeoPixel(Pin(15, Pin.OUT), 30)
     print("fade 10-14...")
-    np.fade(cycles=4, color=(255,0,0), lights=[i for i in range(10,15)])
+    await np.afade(cycles=4, color=(255,0,0), lights=[i for i in range(10,15)])
     
     print("Random for first half...")
-    np.random(lights=[i for i in range(np.n//2)])
+    await np.arandom(lights=[i for i in range(np.n//2)])
     print("Fade...")
-    np.fade()
+    await np.afade()
     print("Bounce...")
-    np.bounce()
+    await np.abounce()
     print("Chase...")
-    np.chase(color=(80,5,5),pause_ms=50)
+    await np.achase(color=(80,5,5),pause_ms=50)
     print("Random...")
-    np.random()
+    await np.arandom()
     print("Clearing..")
     np.clear()
 
 if __name__ == "__main__":
-    run_test()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(test())  
+
 
 
 
