@@ -16,7 +16,7 @@ class LED_async():
                 self.led.value(not self.led.value())
                 await asyncio.sleep_ms(int(500 / self.rate))
 
-    def flash(self, rate):
+    def flash(self, rate): # rate: blinks per second
         self.rate = rate
 
     def on(self):
@@ -43,4 +43,5 @@ async def test(pin=5,delay=10,rate=1):
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     loop.run_until_complete(test())  
+
 

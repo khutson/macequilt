@@ -3,3 +3,6 @@ async def hello():
         print('Hello world.')
         await asyncio.sleep(1)
 
+loop = asyncio.get_event_loop()
+loop.run_until_complete(hello())  
+

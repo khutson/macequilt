@@ -57,7 +57,7 @@ brightness 0..1
             for j in lights:
                 col = tuple([int(c * brightness) for c in os.urandom(3)])
                 self[j] = col
-            asyncio.sleep_ms(pause_ms)
+            await asyncio.sleep_ms(pause_ms)
 
     def chase(self, color=(255,255,255), pause_time=25, num_cycles=4, lights=None):
         if lights is None:
@@ -70,13 +70,19 @@ brightness 0..1
             self.write()
             time.sleep_ms(pause_time)
           
-    async def achase(self, color=(255,255,255), pause_ms=25, num_cycles=4, lights=None):
+    async def achase(self, duration=None, color=(255,255,255), pause_ms=25, num_cycles=4, lights=None):
         n, lights = self.get_sublights(lights)
+        start_ms = ticks_ms()
+        if duration is None:
+            duration = num_cycles * pause_ms
+        else:
+            num_cycles = duration // pause_ms + 1
         for i in range(num_cycles * n): 
-            for j in lights:
-                self[j]=(0, 0, 0)
+            if ticks_diff(ticks_ms, start_ms) > duration:
+                break
+            self[lights[(i-1) % n]] = (0,0,0)
             self[lights[i % n]] = color
-            asyncio.sleep_ms(pause_time)
+            await asyncio.sleep_ms(pause_time)
 
 
     def bounce(self, color=(63,0,0), pause_ms=25, num_cycles=4, lights=None):
@@ -98,7 +104,7 @@ brightness 0..1
                 self[i % n] = (0, 0, 0)
             else:
                 self[n - 1 - (i % n)] = (0, 0, 0)
-            asyncio.sleep_ms(pause_ms)
+            await asyncio.sleep_ms(pause_ms)
   
 
     def fade(self, cycles=1, color=(255,255,255), pause_time=10, lights=None):
@@ -119,7 +125,7 @@ brightness 0..1
         self.write()
         
 async def test():
-    np = ArtNeoPixel(Pin(15, Pin.OUT), 30)
+    np = ArtNeoPixel(15, 30)
     print("fade 10-14...")
     await np.afade(cycles=4, color=(255,0,0), lights=[i for i in range(10,15)])
     
