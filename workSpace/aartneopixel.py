@@ -24,13 +24,13 @@ class ArtNeoPixel(NeoPixel):
                 self.write()
                 await asyncio.sleep_ms(self.refresh_rate)
     
-    def get_sublights(lights):
+    def get_sublights(self,lights):
         if lights is None:
             lights = [ j for j in range(self.n)]
         return len(lights), lights
 
 
-    def random(self, display_time=5000, sleep_time=100, brightness=0.1, lights=None):
+    def random(self, display_time=5000, pause_ms=100, brightness=0.1, lights=None):
         """
 Randomly flashes all pixels.
 All times in milliseconds.
@@ -45,7 +45,7 @@ brightness 0..1
                 col = tuple([int(c * brightness) for c in os.urandom(3)])
                 self[j] = col
             self.write()
-            time.sleep_ms(sleep_time)
+            time.sleep_ms(pause_ms)
         self.fill((0, 0, 0))
         self.write()
     
@@ -53,13 +53,13 @@ brightness 0..1
         if lights is None:
             lights = [ j for j in range(self.n)]
         start_ms = ticks_ms()
-        while ticks_diff(ticks_ms, start_ms) < duration:
+        while ticks_diff(ticks_ms(), start_ms) < duration:
             for j in lights:
                 col = tuple([int(c * brightness) for c in os.urandom(3)])
                 self[j] = col
             await asyncio.sleep_ms(pause_ms)
 
-    def chase(self, color=(255,255,255), pause_time=25, num_cycles=4, lights=None):
+    def chase(self, color=(255,255,255), pause_ms=25, num_cycles=4, lights=None):
         if lights is None:
             lights = [ j for j in range(self.n)]
         n = len(lights)
@@ -68,7 +68,7 @@ brightness 0..1
                 self[j]=(0, 0, 0)
             self[lights[i % n]] = color
             self.write()
-            time.sleep_ms(pause_time)
+            time.sleep_ms(pause_ms)
           
     async def achase(self, duration=None, color=(255,255,255), pause_ms=25, num_cycles=4, lights=None):
         n, lights = self.get_sublights(lights)
@@ -78,11 +78,11 @@ brightness 0..1
         else:
             num_cycles = duration // pause_ms + 1
         for i in range(num_cycles * n): 
-            if ticks_diff(ticks_ms, start_ms) > duration:
+            if ticks_diff(ticks_ms(), start_ms) > duration:
                 break
             self[lights[(i-1) % n]] = (0,0,0)
             self[lights[i % n]] = color
-            await asyncio.sleep_ms(pause_time)
+            await asyncio.sleep_ms(pause_ms)
 
 
     def bounce(self, color=(63,0,0), pause_ms=25, num_cycles=4, lights=None):
@@ -94,7 +94,7 @@ brightness 0..1
             else:
                 self[n - 1 - (i % n)] = (0, 0, 0)
             self.write()
-            time.sleep_ms(pause_time)
+            time.sleep_ms(pause_ms)
   
     async def abounce(self, color=(63,0,0), pause_ms=25, num_cycles=4, lights=None):
         n, lights = self.get_sublights(lights)
@@ -107,7 +107,7 @@ brightness 0..1
             await asyncio.sleep_ms(pause_ms)
   
 
-    def fade(self, cycles=1, color=(255,255,255), pause_time=10, lights=None):
+    def fade(self, cycles=1, color=(255,255,255), pause_ms=10, lights=None):
         n, lights = self.get_sublights(lights)
         for c in range(cycles):
             for i in range(0, 2 * 256, 8):
@@ -118,21 +118,21 @@ brightness 0..1
                         val = 255 - (i & 0xff)
                     self[lights[j]] = [val & v for v in color] 
                 self.write()
-                time.sleep_ms(pause_time)
+                time.sleep_ms(pause_ms)
 
     def clear(self):
         self.fill((0,0,0))
         self.write()
         
 async def test():
-    np = ArtNeoPixel(15, 30)
-    print("fade 10-14...")
-    await np.afade(cycles=4, color=(255,0,0), lights=[i for i in range(10,15)])
+    np = ArtNeoPixel(15, 1)
+    # print("fade 10-14...")
+    # await np.afade(cycles=4, color=(255,0,0), lights=[i for i in range(10,15)])
     
     print("Random for first half...")
     await np.arandom(lights=[i for i in range(np.n//2)])
-    print("Fade...")
-    await np.afade()
+    # print("Fade...")
+    # await np.afade()
     print("Bounce...")
     await np.abounce()
     print("Chase...")
@@ -145,6 +145,7 @@ async def test():
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.run_until_complete(test())  
+
 
 
 

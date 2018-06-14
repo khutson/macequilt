@@ -23,15 +23,15 @@ class ArtNeoPixel(NeoPixel):
                 self.write()
                 await asyncio.sleep_ms(self.refresh_rate)
     
-    def get_sublights(lights):
+    def get_sublights(self,lights):
         if lights is None:
             lights = [ j for j in range(self.n)]
         return len(lights), lights
 
     async def arandom(self, duration=5000, pause_ms=100, brightness=0.1, lights=None):
-        n, lights = self.get_sublights(lights)
+        n,lights = self.get_sublights(lights)
         start_ms = ticks_ms()
-        while ticks_diff(ticks_ms, start_ms) < duration:
+        while ticks_diff(ticks_ms(), start_ms) < duration:
             for j in lights:
                 col = tuple([int(c * brightness) for c in os.urandom(3)])
                 self[j] = col
@@ -42,8 +42,7 @@ async def test():
     np = ArtNeoPixel(15, 1)
     print('await arandom')
     await np.arandom()
-    print("Clearing..")
-    np.clear()
+    print("Finished.")
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
