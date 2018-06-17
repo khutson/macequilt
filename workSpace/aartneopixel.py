@@ -2,24 +2,28 @@ from machine import Pin
 from neopixel import NeoPixel
 from time import ticks_ms, ticks_diff
 import os
-import uasyncio as asyncio
+try:
+    import uasyncio as asyncio
+except ImportError:
+    print("install uasyncio with import upip; upip.install('micropython-uasyncio')")
 
 
 class ArtNeoPixel(NeoPixel):
 
-    def __init__(self, pin, n, bpp=3):
+    def __init__(self, pin, n, bpp=3,seq_duration=10000):
         if type(pin) is int:
             pin = Pin(pin, Pin.OUT)
         super().__init__(pin, n, bpp)
         self.refresh_rate = 15
-        self.seq_duration = 60000 # ms
+        self.seq_duration = seq_duration # ms
         print("{} lights on {}".format(self.n, self.pin))
         loop = asyncio.get_event_loop()
         loop.create_task(self.run())
 
     async def run(self):
         start_ms = ticks_ms()
-        while True:
+        self.running = True
+        while self.running:
             self.seq_ms = ticks_diff(ticks_ms(),start_ms)
             if self.seq_ms > self.seq_duration:
                 start_ms = ticks_ms()
@@ -27,6 +31,9 @@ class ArtNeoPixel(NeoPixel):
             if self.refresh_rate <= 0:
                 await asyncio.sleep_ms(200)
             else:
+                print("duration={}, seq_ms={},start_ms={}".format( \
+                        self.seq_duration,self.seq_ms,start_ms))
+                print("run: self[0]={}".format(self[0]))
                 self.write()
                 await asyncio.sleep_ms(self.refresh_rate)
     
@@ -76,15 +83,32 @@ class ArtNeoPixel(NeoPixel):
             await asyncio.sleep_ms(pause_ms)
   
 
-    async def afade(self, cycles=1, color=(255,255,255), pause_ms=25, lights=None):
+    async def afade(self, duration=None, cycles=1, 
+                    color=(255,255,255), pause_ms=25, lights=None):
         n, lights = self.get_sublights(lights)
         for c in range(cycles):
             for i in range(0, 2 * 256, 8):
+                if (i // 256) % 2 == 0:
+                    val = i & 0xff
+                else:
+                    val = 255 - (i & 0xff)
+                print("i={}, val={}".format(i,val))
                 for j in range(n):
-                    if (i // 256) % 2 == 0:
-                        val = i & 0xff
-                    else:
-                        val = 255 - (i & 0xff)
+                    self[lights[j]] = (val,val,val) # [val & v for v in color] 
+                await asyncio.sleep_ms(pause_ms)
+
+    async def afade2(self, duration=None, cycles=1, 
+                    color=(255,255,255), pause_ms=200, lights=None):
+        n, lights = self.get_sublights(lights)
+        for c in range(cycles):
+            for val in range(7, 256, 8):
+                print("val={}".format(val))
+                for j in range(n):
+                    self[lights[j]] = [val & v for v in color] 
+                await asyncio.sleep_ms(pause_ms)
+            for val in range(248, -1, -8):
+                print("val={}".format(val))
+                for j in range(n):
                     self[lights[j]] = [val & v for v in color] 
                 await asyncio.sleep_ms(pause_ms)
 
@@ -109,11 +133,34 @@ async def test():
     await np.arandom()
     print("Clearing..")
     np.clear()
+    
+async def simul_test():
+    print("and now...simultaneously...")
+    np = ArtNeoPixel(15, 30,seq_duration=2)
+    loop = asyncio.get_event_loop()
+    print("fade 0-7...")
+    loop.create_task( np.afade2(cycles=1, color=(255,0,0), lights=[i for i in range(8)]))
+    #print("Random 8-14...")
+    # loop.create_task( np.arandom(lights=[i for i in range(8,15)]))
+    # print("Bounce 15-22...")
+    # loop.create_task( np.abounce(lights=[i for i in range(15,23)]))
+    # print("Chase...")
+    # loop.create_task( np.achase(color=(80,5,5),pause_ms=50,lights=[ i for i in range(22,30)]))
+    await asyncio.sleep(10)
+    print("Clearing..")
+    np.running=False
+    await asyncio.sleep(0)
+    np.clear()
+    
+def run_tests():
+    loop = asyncio.get_event_loop()
+    # loop.run_until_complete(test())  
+    loop.run_until_complete(simul_test())  
+
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(test())  
-
+    run_tests()
+    
 
 
 
