@@ -15,12 +15,21 @@ class ArtNeoPixel(NeoPixel):
             pin = Pin(pin, Pin.OUT)
         super().__init__(pin, n, bpp)
         self.refresh_rate = 15
+        self.need_update = True
         self.seq_duration = seq_duration # ms
-        print("{} lights on {}".format(self.n, self.pin))
+        # print("{} lights on {}".format(self.n, self.pin))
+        self.effects={'random':self.arandom,
+                      'fade':self.afade,
+                      'bounce':self.abounce,
+                      'chase':self.achase }
         loop = asyncio.get_event_loop()
-        loop.create_task(self.run())
-
-    async def run(self):
+        loop.create_task(self.update_lights())
+    
+    def run(self,cycles=1):
+        for c in range(cycles):
+            await asyncio.sleep_ms(self.seq_duration)
+            
+    async def update_lights(self):
         start_ms = ticks_ms()
         self.running = True
         while self.running:
@@ -33,8 +42,10 @@ class ArtNeoPixel(NeoPixel):
             else:
                 print("duration={}, seq_ms={},start_ms={}".format( \
                         self.seq_duration,self.seq_ms,start_ms))
-                print("run: self[0]={}".format(self[0]))
-                self.write()
+                print("update_lights: self[0]={}".format(self[0]))
+                if self.need_update:
+                    self.write()
+                    self.need_update = False
                 await asyncio.sleep_ms(self.refresh_rate)
     
     def get_sublights(self,lights):
@@ -72,45 +83,42 @@ class ArtNeoPixel(NeoPixel):
             self[lights[i % n]] = color
             await asyncio.sleep_ms(pause_ms)
   
-    async def abounce(self, color=(63,0,0), pause_ms=25, num_cycles=4, lights=None):
+    async def abounce(self, color=(255,255,255), bgcolor=(0,0,0),
+                      pause_ms=25, cycles=4, lights=None):
         n, lights = self.get_sublights(lights)
-        for i in range(4 * n):
-            self.fill(color)
+        for i in range(cycles * 2 * n):
+            for j in lights:
+                self[j] = bgcolor
             if (i // n) % 2 == 0:
-                self[i % n] = (0, 0, 0)
+                self[lights[i % n]] = color
             else:
-                self[n - 1 - (i % n)] = (0, 0, 0)
+                self[lights[n - 1 - (i % n)]] = color
             await asyncio.sleep_ms(pause_ms)
   
 
     async def afade(self, duration=None, cycles=1, 
-                    color=(255,255,255), pause_ms=25, lights=None):
+                    color=(255,255,255), pause_ms=50, step=8,lights=None):
         n, lights = self.get_sublights(lights)
         for c in range(cycles):
-            for i in range(0, 2 * 256, 8):
-                if (i // 256) % 2 == 0:
-                    val = i & 0xff
-                else:
-                    val = 255 - (i & 0xff)
-                print("i={}, val={}".format(i,val))
+            for val in range(0, 256, step):
+                print("val={}".format(val))
                 for j in range(n):
-                    self[lights[j]] = (val,val,val) # [val & v for v in color] 
+                    self[lights[j]] = [val & v for v in color] 
+                self.need_update=True
                 await asyncio.sleep_ms(pause_ms)
+            for val in range(255, -1, -step):
+                print("val={}".format(val))
+                for j in range(n):
+                    self[lights[j]] = [val & v for v in color] 
+                self.need_update=True
+                await asyncio.sleep_ms(pause_ms)
+            for j in range(n):
+                self[lights[j]] = (0,0,0) 
+            self.need_update=True
 
-    async def afade2(self, duration=None, cycles=1, 
-                    color=(255,255,255), pause_ms=200, lights=None):
-        n, lights = self.get_sublights(lights)
-        for c in range(cycles):
-            for val in range(7, 256, 8):
-                print("val={}".format(val))
-                for j in range(n):
-                    self[lights[j]] = [val & v for v in color] 
-                await asyncio.sleep_ms(pause_ms)
-            for val in range(248, -1, -8):
-                print("val={}".format(val))
-                for j in range(n):
-                    self[lights[j]] = [val & v for v in color] 
-                await asyncio.sleep_ms(pause_ms)
+    def effect(self,e):
+        loop = asyncio.get_event_loop()
+        loop.create_task( self.effects[e['effect']](**e))
 
     def clear(self):
         self.fill((0,0,0))
@@ -136,16 +144,16 @@ async def test():
     
 async def simul_test():
     print("and now...simultaneously...")
-    np = ArtNeoPixel(15, 30,seq_duration=2)
+    np = ArtNeoPixel(15, 30,seq_duration=20000)
     loop = asyncio.get_event_loop()
     print("fade 0-7...")
-    loop.create_task( np.afade2(cycles=1, color=(255,0,0), lights=[i for i in range(8)]))
+    loop.create_task( np.afade(cycles=4, color=(255,0,0), lights=[i for i in range(8)]))
     #print("Random 8-14...")
-    # loop.create_task( np.arandom(lights=[i for i in range(8,15)]))
-    # print("Bounce 15-22...")
-    # loop.create_task( np.abounce(lights=[i for i in range(15,23)]))
-    # print("Chase...")
-    # loop.create_task( np.achase(color=(80,5,5),pause_ms=50,lights=[ i for i in range(22,30)]))
+    #loop.create_task( np.arandom(lights=[i for i in range(8,15)]))
+    #print("Bounce 15-22...")
+    #loop.create_task( np.abounce(cycles=6,lights=[i for i in range(15,23)]))
+    # print("Chase 23-29")
+    # loop.create_task( np.achase(color=(0,255,0),pause_ms=50,lights=[ i for i in range(23,30)]))
     await asyncio.sleep(10)
     print("Clearing..")
     np.running=False
