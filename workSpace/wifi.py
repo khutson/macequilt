@@ -3,6 +3,10 @@ import time
 from machine import Pin
 from wificonfig import ssids
 
+def status():
+    sta_if = network.WLAN(network.STA_IF)
+    print('network config:', sta_if.ifconfig())
+
 def connect(repl=False, ip=None ):
     led=Pin(2,Pin.OUT)
     led.off()
@@ -39,5 +43,6 @@ def connect(repl=False, ip=None ):
 
 if __name__ == '__main__':
     connect()
+
 
 
