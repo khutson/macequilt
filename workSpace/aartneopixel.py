@@ -57,38 +57,50 @@ class ArtNeoPixel(NeoPixel):
     
     async def wait_for_start(self, start_ms):
         while start_ms > self.seq_ms:
-            await asyncio.sleep_ms(0)
+            await asyncio.sleep_ms(7)
             
-    async def arandom(self, duration=5000, pause_ms=100, 
-                      brightness=0.1, lights=None,
-                      start_ms=0):
+    async def arandom(self, brightness=0.1,
+                      duration=5000, pause_ms=100, 
+                      start_ms=0, lights=None,):
         await self.wait_for_start(start_ms)
         n, lights = self.get_sublights(lights)
         start_ms = ticks_ms()
         while ticks_diff(ticks_ms(), start_ms) < duration:
             for j in lights:
-                col = tuple([int(c * brightness) for c in os.urandom(3)])
+                col = [int(c * brightness) for c in os.urandom(3)]
                 self[j] = col
             self.need_update=True
             await asyncio.sleep_ms(pause_ms)
           
-    async def achase(self, duration=None, color=(255,255,255), pause_ms=25, num_cycles=4, lights=None):
+    async def achase(self, 
+                     color=(255,255,255), bgcolor=(0,0,0),
+                     cycles=4,
+                     duration=None, pause_ms=25, 
+                     start_ms=0, lights=None):
+        await self.wait_for_start(start_ms)
         n, lights = self.get_sublights(lights)
-        start_ms = ticks_ms()
+        begin_ms = ticks_ms()
         if duration is None:
-            duration = num_cycles * pause_ms
+            duration = cycles * pause_ms * n
         else:
-            num_cycles = duration // pause_ms + 1
-        for i in range(num_cycles * n): 
-            if ticks_diff(ticks_ms(), start_ms) > duration:
+            cycles = duration // pause_ms * (n + 1)
+        for i in range(cycles * n): 
+            if ticks_diff(ticks_ms(), begin_ms) > duration:
                 break
-            self[lights[(i-1) % n]] = (0,0,0)
+            self[lights[(i-1) % n]] = bgcolor
             self[lights[i % n]] = color
             self.need_update=True
             await asyncio.sleep_ms(pause_ms)
   
-    async def abounce(self, color=(255,255,255), bgcolor=(0,0,0),
-                      pause_ms=25, cycles=4, lights=None):
+    async def abounce( self, 
+                       color=(255,255,255), bgcolor=(0,0,0),
+                       cycles=4,
+                       duration=None, pause_ms=25, 
+                       start_ms=0, lights=None):
+        if duration is None:
+            duration = cycles * pause_ms * n
+        else:
+            cycles = duration // pause_ms * (n + 1)
         n, lights = self.get_sublights(lights)
         for i in range(cycles * 2 * n):
             for j in lights:
@@ -101,8 +113,10 @@ class ArtNeoPixel(NeoPixel):
             await asyncio.sleep_ms(pause_ms)
   
 
-    async def afade(self, duration=None, cycles=1, 
-                    color=(255,255,255), pause_ms=50, step=8,lights=None):
+    async def afade(self,  
+                    color=(255,255,255), 
+                    cycles=1,step=8,
+                    duration=None, pause_ms=50, lights=None):
         n, lights = self.get_sublights(lights)
         for c in range(cycles):
             for val in range(0, 256, step):
@@ -131,14 +145,14 @@ class ArtNeoPixel(NeoPixel):
         if lights is None:
             self.fill((0,0,0))
         else:
-            for i in range(len(lights):
+            for i in range(len(lights)):
                 self[lights[i]] = (0,0,0)
         self.write()
         
 async def test():
     np = ArtNeoPixel(15, 30)
     logging.info("fade 10-14...")
-    await np.afade(cycles=4, color=(255,0,0), lights=[i for i in range(10,15)])
+    await np.afade(cycles=4, pause_ms=10,color=(255,0,0), lights=[i for i in range(10,15)])
     
     logging.info("Random for first half...")
     await np.arandom(lights=[i for i in range(np.n//2)])
@@ -159,7 +173,7 @@ async def simul_test():
     np.effect({'effect':'random','lights':[26,27,28,29],'brightness':0.5})
     loop = asyncio.get_event_loop()
     logging.info("fade 0-7...")
-    loop.create_task( np.afade(cycles=4, color=(255,0,0), lights=[i for i in range(8)]))
+    loop.create_task( np.afade(cycles=4, pause_ms=10,color=(255,0,0), lights=[i for i in range(8)]))
     #logging.info("Random 8-14...")
     #loop.create_task( np.arandom(lights=[i for i in range(8,15)]))
     #logging.info("Bounce 15-22...")
@@ -182,6 +196,8 @@ def run_tests():
 if __name__ == "__main__":
     run_tests()
     
+
+
 
 
 
