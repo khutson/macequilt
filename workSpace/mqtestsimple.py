@@ -13,6 +13,7 @@ np=ArtNeoPixel(15,30)
 
 # Default MQTT server to connect to
 SERVER = "iot.eclipse.org"
+SERVER = "192.168.1.56"
 CLIENT_ID = ubinascii.hexlify(machine.unique_id())
 TOPIC = b"manitou-iot"
 
