@@ -5,7 +5,7 @@ from neopixel import NeoPixel
 import os
 import time
 
-
+np = None
 
 
 
@@ -80,6 +80,7 @@ if __name__ == "__main__":
    setup()
    run()
    del np
+
 
 
 
