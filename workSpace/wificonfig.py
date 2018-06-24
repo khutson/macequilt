@@ -5,6 +5,8 @@ ssids = [
          # ('manitou-iot','manitou!'),
          ('NETGEAR84', 'yellowtrail736'),
          ]
+         
+MQTT_SERVER = "192.168.1.56"
 
 
 

@@ -8,7 +8,7 @@ from umqtt.simple import MQTTClient
 def sub_cb(topic, msg):
     print((topic, msg))
 
-def main(server="192.168.1.6"):
+def main(server="192.168.1.56"):
     c = MQTTClient("umqtt_client", server)
     c.set_callback(sub_cb)
     c.connect()
