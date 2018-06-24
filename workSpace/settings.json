@@ -1,0 +1,9 @@
+{
+  "theme": "day",
+  "mode": "microbit",
+  "paths": [
+    "/home/kent/dev/macequilt/workSpace/wifi.py"
+  ],
+  "workspace": "/home/kent/dev/macequilt/workSpace",
+  "microbit_runtime_hex": null
+}

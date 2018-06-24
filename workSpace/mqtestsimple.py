@@ -41,10 +41,12 @@ def sub_cb(topic, msg):
 
 
 def main(server=SERVER):
+    print("connecting to {}".format(server))
     c = MQTTClient(CLIENT_ID, server)
     # Subscribed messages will be delivered to this callback
     c.set_callback(sub_cb)
     c.connect()
+    print("subscribing to topic {}".format(TOPIC))
     c.subscribe(TOPIC)
     print("Connected to %s, subscribed to %s topic" % (server, TOPIC))
 
@@ -57,4 +59,5 @@ def main(server=SERVER):
         
 if __name__ == '__main__':
     main()
+
 
