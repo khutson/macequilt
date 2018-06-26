@@ -12,7 +12,7 @@
       <sourceFolder url="file://$MODULE_DIR$/workSpace" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/.idea" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.5 (mp)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.6 (esp) (1)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="MicroPython" level="project" />
   </component>
