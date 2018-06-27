@@ -10,9 +10,11 @@
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
       <sourceFolder url="file://$MODULE_DIR$/workSpace" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/lobo" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/.idea" />
+      <excludeFolder url="file://$MODULE_DIR$/workSpace/.idea" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.6 (esp) (1)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.5 (p35)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="MicroPython" level="project" />
   </component>
