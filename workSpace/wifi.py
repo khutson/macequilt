@@ -6,6 +6,7 @@ from wificonfig import ssids
 def status():
     sta_if = network.WLAN(network.STA_IF)
     print('network config:', sta_if.ifconfig())
+    return sta_if.isconnected()
 
 def connect(repl=False, ip=None ):
     led=Pin(2,Pin.OUT)
@@ -39,7 +40,7 @@ def connect(repl=False, ip=None ):
         import webrepl
         webrepl.start()
         led.value(1)
-
+    return sta_if.isconnected()
 
 if __name__ == '__main__':
     connect()

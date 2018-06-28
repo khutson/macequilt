@@ -1,1 +1,4 @@
-import artneopixel as anp
+import artneo
+
+np = artneo.ArtNeoPixel(15,30)
+

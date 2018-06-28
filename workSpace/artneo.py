@@ -29,6 +29,8 @@ class ArtNeoPixel(NeoPixel):
         loop.create_task(self.update_lights())
 
     async def update_lights(self):
+        """actually writes out pixel info every self.refresh_rate msecs
+        runs asynchronously and should only be one running"""
         self.seq_start = ticks_ms()
         self.running = True
         while self.running:
@@ -197,7 +199,7 @@ async def simul_test():
 def run_tests():
     
     loop = asyncio.get_event_loop()
-    # loop.run_until_complete(test())  
+    loop.run_until_complete(test())
     loop.run_until_complete(simul_test())  
 
 
