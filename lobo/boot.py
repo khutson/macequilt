@@ -1,1 +1,0 @@
-# This file is executed on every boot (including wake-boot from deepsleep)import sysimport wifiimport networksys.path[1] = '/flash/lib'wifi.connect()if network.ftp.start():    print("FTP server started")else:    print("FTP server not started")if network.telnet.start():    print("telnet server started")else:    print("telnet server not started")
