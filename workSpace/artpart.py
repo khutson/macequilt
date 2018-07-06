@@ -41,3 +41,13 @@ class ArtPart():
         # may need to put bounds on this difference so it starts close to correct start time but not too far off
         if delay > 0:
             await asyncio.sleep_ms(delay)
+
+    def cmd(self, e):
+        if "cmd" not in e or e['cmd'] not in self.cmds:
+            logging.warning("{}: Command not found".format(self.name))
+            logging.warning(e)
+            return
+        the_cmd = self.cmds[e['cmd']]
+        del e['cmd']
+        loop = asyncio.get_event_loop()
+        loop.create_task(the_cmd(**e))

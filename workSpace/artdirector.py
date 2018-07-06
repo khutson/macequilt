@@ -77,6 +77,13 @@ class ArtDirector():
                 topic, msg = self.cmdq.popleft()
                 print("check_q: topic = {}".format(topic))
                 print("check_q: msg   = {}".format(msg))
+                if topic in self.parts:
+                    try:
+                        msg_json = json.loads(msg)
+                    except ValueError:
+                        print("Invalid JSON command: {}".format(msg))
+                        break
+                    self.parts[topic].cmd(msg_json)
             await asyncio.sleep_ms(4000)
 
     def add_part(self, part):
@@ -84,7 +91,7 @@ class ArtDirector():
 
         :type part: ArtPart
         """
-        self.parts[part.name] = part
+        self.parts[part.name] = self.name + "/" + part
         
     def list_cmds(self):
         print("{} parts".format(len(self.parts)))
