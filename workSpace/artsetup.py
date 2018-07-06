@@ -1,21 +1,18 @@
 import upip
-import importlib
 import wifi
 wifi.connect()
 
-def checkandget(mod_name):
-    try:
-        importlib.__import__(mod_name)
-        print("{} is already installed.".format(mod_name))
-    except ImportError:
-        print("Installing {}".format(mod_name))
-        upip.install('micropython-'+mod_name)
+def getmodule(mod_name):
+    print("Installing {}".format(mod_name))
+    upip.install('micropython-'+mod_name)
         
-for mod_name in ['uasyncio','umqtt.simple','umqtt.robust']:
-    checkandget(mod_name)
+for mod_name in ['uasyncio','umqtt.simple','umqtt.robust','logging']:
+    getmodule(mod_name)
 
 try:
-    importlib.__import__("mqtt_as")
+    import mqtt_as
     print("mqtt_as is already installed.")
 except ImportError:
-    print("mqtt_as is at https://github.com/peterhinch/micropython-mqtt/tree/master/mqtt_as")
+    print("mqtt_as is not installed")
+    print("mqtt_as.py is at https://github.com/peterhinch/micropython-mqtt/tree/master/mqtt_as")
+    print("please download from that location and copy to the ESP")
