@@ -7,13 +7,14 @@ from artpart import ArtPart
 import uasyncio as asyncio
 
 logging.basicConfig(level=logging.WARNING)
+log = logging.getLogger("ArtNeoPixel")
 
 
 class ArtNeoPixel(ArtPart):
 
-    def __init__(self, pin, n, bpp=3, name=None, duration=10000):
+    def __init__(self, pin=15, n=30, bpp=3, name=None, duration=10000, director=None):
 
-        super().__init__(name=name, duration=duration)
+        super().__init__(name=name, duration=duration, director=director)
 
         if type(pin) is not Pin:
             pin = Pin(pin, Pin.OUT)
@@ -22,11 +23,12 @@ class ArtNeoPixel(ArtPart):
         self.need_update = True
         self.running = True
         self.duration = duration  # ms
-        # logging.info("{} lights on {}".format(self.n, self.pin))
-        self.cmds = {'random': self.random,
-                    'fade': self.fade,
-                    'bounce': self.bounce,
-                    'chase': self.chase}
+        log.debug("{} lights on {}".format(self.np.n, self.np.pin))
+        self.cmds['random'] = self.random
+        self.cmds['fade'] = self.fade
+        self.cmds['bounce'] = self.bounce
+        self.cmds['chase'] = self.chase
+        self.cmds['clear'] = self.clear
         loop = asyncio.get_event_loop()
         loop.create_task(self.update())
 
@@ -45,12 +47,12 @@ class ArtNeoPixel(ArtPart):
             if self.seq_ms > self.duration:
                 self.seq_start = ticks_ms()
                 self.seq_ms = 0
-            if self.refresh_rate <= 0:
+            if self.refresh_rate < 0:
                 await asyncio.sleep_ms(200)
             else:
-                logging.debug("duration={}, seq_ms={},seq_start={}".format(
-                        self.duration, self.seq_ms, self.seq_start))
-                logging.debug("self[0]={}".format(self[0]))
+                log.debug("duration={}, seq_ms={},seq_start={}".format(
+                          self.duration, self.seq_ms, self.seq_start))
+                log.debug("self[0]={}".format(self[0]))
                 if self.need_update:
                     self.np.write()
                     self.need_update = False
@@ -127,13 +129,13 @@ class ArtNeoPixel(ArtPart):
         while self.running:
             for c in range(cycles):
                 for val in range(0, 256, step):
-                    logging.info("val={}".format(val))
+                    log.info("val={}".format(val))
                     for j in range(n):
                         self.np[lights[j]] = [val & v for v in color]
                     self.need_update = True
                     await asyncio.sleep_ms(pause_ms)
                 for val in range(255, -1, -step):
-                    logging.info("val={}".format(val))
+                    log.info("val={}".format(val))
                     for j in range(n):
                         self.np[lights[j]] = [val & v for v in color]
                     self.need_update=True
@@ -143,47 +145,49 @@ class ArtNeoPixel(ArtPart):
                 self.need_update = True
 
 
-    def clear(self,lights=None):
+    async def clear(self,lights=None, start=0):
+        await self.wait_for_start(start)
+
         if lights is None:
-            self.np.fill((0,0,0))
+            self.np.fill((0, 0, 0))
         else:
             for i in range(len(lights)):
-                self.np[lights[i]] = (0,0,0)
+                self.np[lights[i]] = (0, 0, 0)
         self.np.write()
         
 async def test():
     np = ArtNeoPixel(15, 30)
-    logging.info("fade 10-14...")
+    log.info("fade 10-14...")
     await np.fade(cycles=4, pause_ms=10, color=(255, 0, 0), lights=[i for i in range(10, 15)])
     
-    logging.info("Random for first half...")
-    await np.random(lights=[i for i in range(np.n // 2)])
-    logging.info("Fade...")
+    log.info("Random for first half...")
+    await np.random(lights=[i for i in range(np.np.n // 2)])
+    log.info("Fade...")
     await np.fade()
-    logging.info("Bounce...")
+    log.info("Bounce...")
     await np.bounce()
-    logging.info("Chase...")
+    log.info("Chase...")
     await np.chase(color=(80, 5, 5), pause_ms=50)
-    logging.info("Random...")
+    log.info("Random...")
     await np.random()
-    logging.info("Clearing..")
+    log.info("Clearing..")
     np.clear()
     
 async def simul_test():
-    logging.info("and now...simultaneously...")
+    log.info("and now...simultaneously...")
     np = ArtNeoPixel(15, 30, duration=20000)
     np.effect({'effect': 'random', 'lights': [26, 27, 28, 29], 'brightness': 0.5})
     loop = asyncio.get_event_loop()
-    logging.info("fade 0-7...")
+    log.info("fade 0-7...")
     loop.create_task(np.fade(cycles=4, pause_ms=10, color=(255, 0, 0), lights=[i for i in range(8)]))
-    # logging.info("Random 8-14...")
+    # log.info("Random 8-14...")
     # loop.create_task( np.arandom(lights=[i for i in range(8,15)]))
-    # logging.info("Bounce 15-22...")
+    # log.info("Bounce 15-22...")
     # loop.create_task( np.abounce(cycles=6,lights=[i for i in range(15,23)]))
-    # logging.info("Chase 23-29")
+    # log.info("Chase 23-29")
     # loop.create_task( np.achase(color=(0,255,0),pause_ms=50,lights=[ i for i in range(23,30)]))
     await asyncio.sleep(10)
-    logging.info("Clearing..")
+    log.info("Clearing..")
     np.running = False
     await asyncio.sleep(0)
     np.clear()

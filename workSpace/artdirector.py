@@ -1,14 +1,18 @@
-
+import gc
 from mqtt_as import MQTTClient
 from config import config
 import uasyncio as asyncio
 from ucollections import deque
-from machine import Pin
+import json
 
 from wificonfig import MQTT_SERVER
-# SERVER = '192.168.1.56'  # Change to suit
+from artpart import ArtPart
 
-q = deque((),20)
+import logging
+logging.basicConfig(level=logging.DEBUG)
+log = logging.getLogger("ArtDirector")
+gc.collect()
+q = deque((), 20)
 
 
 # Subscription callback
@@ -18,7 +22,7 @@ def sub_cb(topic, msg):
     print("len(q) == {}".format(len(q)))
 
 async def wifi_han(state):
-    print('Wifi is ', 'up' if state else 'down')
+    print('Wifi is {}'.format('up' if state else 'down'))
     await asyncio.sleep(1)
 
 
@@ -38,65 +42,78 @@ MQTTClient.DEBUG = True  # Optional
 client = MQTTClient(config)
 
 
-
-async def main(client,topic):
-    try:
-        await client.connect()
-    except OSError:
-        print('Connection failed.')
-        return
-    n = 0
-    while True:
-        await asyncio.sleep(5)
-        print('publish', n)
-        # If WiFi is down the following will pause for the duration.
-        await client.publish('mac/asynctest', '{} {}'.format(n, client.REPUB_COUNT), qos=1)
-        n += 1
-
-
 class ArtDirector():
-    """manages mqtt messages and other commands between ArtProject components"""
+    """manages mqtt messages and other commands between ArtProject parts"""
 
     def __init__(self, name, cmdq=q):
         self.name = name # project name
         self.cmdq = cmdq
+        self.running = False
         self.parts = {}
+        self.cmds = {"stop":self.stop}
+        log.debug("%s initialized", self.name)
 
     def run(self):
         loop = asyncio.get_event_loop()
         loop.create_task(self.check_q())
+        log.debug("running main")
         try:
-            loop.run_until_complete(main(client, self.name))
+            loop.run_until_complete(self.main(client, self.name))
         finally:
+            log.debug("closing mqtt client")
             client.close()  # Prevent LmacRxBlk:1 errors
+
+    async def stop(self):
+        self.running = False
+
+    async def main(self, client, topic):
+        try:
+            await client.connect()
+        except OSError:
+            log.warning('Connection failed.')
+            return
+        n = 0
+        self.running = True
+        while self.running:
+            # xxx needs to handle publishing commands/statuses from the parts
+            await asyncio.sleep(10)
+            log.debug('publish %d', n)
+            # If WiFi is down the following will pause for the duration.
+            await client.publish('mac/asynctest', json.dumps({"count":n}), qos=1)
+            n += 1
 
     async def check_q(self):
         while True:
-            print("check_q: q length == {}".format(len(self.cmdq)))
-            if len(self.cmdq):
-                topic, msg = self.cmdq.popleft()
-                print("check_q: topic = {}".format(topic))
-                print("check_q: msg   = {}".format(msg))
-                if topic in self.parts:
+            if self.running:
+                log.debug("check_q: q length == {}".format(len(self.cmdq)))
+                if len(self.cmdq):
+                    topic, msg = self.cmdq.popleft()
+                    topic = str(topic,'utf-8')
+                    msg = str(msg, 'utf-8')
+                    log.debug("check_q: topic = {}".format(topic))
+                    # log.debug("check_q: msg   = {}".format(msg))
                     try:
                         msg_json = json.loads(msg)
+                        log.debug("check_q: json = {}".format(msg_json))
                     except ValueError:
-                        print("Invalid JSON command: {}".format(msg))
+                        log.error("Invalid JSON command: {}".format(msg))
                         break
-                    self.parts[topic].cmd(msg_json)
-            await asyncio.sleep_ms(4000)
+                    if topic in self.parts:
+                        self.parts[topic].cmd(msg_json)
+            await asyncio.sleep_ms(4000) # xxx need to shorten for production
 
     def add_part(self, part):
         """
 
         :type part: ArtPart
         """
-        self.parts[part.name] = self.name + "/" + part
+        self.parts[self.name + "/" + part.name] = part
+        part.director = self
         
     def list_cmds(self):
         print("{} parts".format(len(self.parts)))
-        for part in self.parts:
-            print("PART: {}".format(part.name))
+        for partname, part in self.parts.items():
+            print("PART: {}".format(partname))
             for cmd in part.cmds:
                 print(" CMD: {}".format(cmd))
 
