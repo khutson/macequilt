@@ -4,10 +4,7 @@ from time import ticks_ms, ticks_diff
 import os
 import logging
 logging.basicConfig(level=logging.WARNING)
-try:
-    import uasyncio as asyncio
-except ImportError:
-    logging.warning("install uasyncio with import upip; upip.install('micropython-uasyncio')")
+import uasyncio as asyncio
 
 
 class ArtNeoPixel(NeoPixel):
@@ -28,8 +25,7 @@ class ArtNeoPixel(NeoPixel):
         loop.create_task(self.update_lights())
     
     def run(self,cycles=1):
-        for c in range(cycles):
-            await asyncio.sleep_ms(self.seq_duration)
+        await asyncio.sleep_ms(self.seq_duration*cycles)
             
     async def update_lights(self):
         start_ms = ticks_ms()
@@ -42,7 +38,7 @@ class ArtNeoPixel(NeoPixel):
             if self.refresh_rate <= 0:
                 await asyncio.sleep_ms(200)
             else:
-                logging.debug("duration={}, seq_ms={},start_ms={}".format( \
+                logging.debug("duration={}, cycle_time={},start_ms={}".format( \
                         self.seq_duration,self.seq_ms,start_ms))
                 logging.debug("self[0]={}".format(self[0]))
                 if self.need_update:

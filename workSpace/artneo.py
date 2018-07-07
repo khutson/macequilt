@@ -6,7 +6,7 @@ import logging
 from artpart import ArtPart
 import uasyncio as asyncio
 
-logging.basicConfig(level=logging.WARNING)
+logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger("ArtNeoPixel")
 
 
@@ -29,8 +29,6 @@ class ArtNeoPixel(ArtPart):
         self.cmds['bounce'] = self.bounce
         self.cmds['chase'] = self.chase
         self.cmds['clear'] = self.clear
-        loop = asyncio.get_event_loop()
-        loop.create_task(self.update())
 
     def __getitem__(self, key):
         return self.np[key]
@@ -38,25 +36,10 @@ class ArtNeoPixel(ArtPart):
     def __setitem__(self, key, value):
         self.np[key] = value
 
-    async def update(self):
-        """actually writes out pixel info every self.refresh_rate msecs
-        runs asynchronously and should only be one running"""
-        self.seq_start = ticks_ms()
-        while self.running:
-            self.seq_ms = ticks_diff(ticks_ms(), self.seq_start)
-            if self.seq_ms > self.duration:
-                self.seq_start = ticks_ms()
-                self.seq_ms = 0
-            if self.refresh_rate < 0:
-                await asyncio.sleep_ms(200)
-            else:
-                log.debug("duration={}, seq_ms={},seq_start={}".format(
-                          self.duration, self.seq_ms, self.seq_start))
-                log.debug("self[0]={}".format(self[0]))
-                if self.need_update:
-                    self.np.write()
-                    self.need_update = False
-                await asyncio.sleep_ms(self.refresh_rate)
+    def do_update(self):
+        self.np.write()
+        self.need_update = False
+        return False
 
     def get_sublights(self, lights):
         if lights is None:
@@ -64,53 +47,56 @@ class ArtNeoPixel(ArtPart):
         return len(lights), lights
     
     async def random(self, brightness=0.1,
-                     duration=5000, pause_ms=100,
-                     start_ms=0, lights=None, **kwargs):
-        await self.wait_for_start(start_ms)
+                     duration=5000, beat=250,
+                     start=0, lights=None, **kwargs):
         n, lights = self.get_sublights(lights)
-        start_ms = ticks_ms()
         while self.running:
-            while ticks_diff(ticks_ms(), start_ms) < duration:
+            await self.wait_for_start(start)
+            begin_ms = ticks_ms()
+            while ticks_diff(ticks_ms(), begin_ms) < duration:
                 for j in lights:
                     col = [int(c * brightness) for c in os.urandom(3)]
                     self.np[j] = col
                 self.need_update = True
-                await asyncio.sleep_ms(pause_ms)
+                await asyncio.sleep_ms(beat)
           
     async def chase(self,
                     color=(255, 255, 255), bgcolor=(0, 0, 0),
                     cycles=4,
-                    duration=None, pause_ms=25,
-                    start_ms=0, lights=None, **kwargs):
+                    duration=None, beat=25,
+                    start=0, lights=None, **kwargs):
         n, lights = self.get_sublights(lights)
         while self.running:
-            await self.wait_for_start(start_ms)
+            await self.wait_for_start(start)
             begin_ms = ticks_ms()
             if duration is None:
-                duration = cycles * pause_ms * n
+                duration = cycles * beat * n
             else:
-                cycles = duration // pause_ms * (n + 1)
+                cycles = duration // (beat * n)
             for i in range(cycles * n):
                 if ticks_diff(ticks_ms(), begin_ms) > duration:
                     break
                 self.np[lights[(i-1) % n]] = bgcolor
                 self.np[lights[i % n]] = color
                 self.need_update = True
-                await asyncio.sleep_ms(pause_ms)
+                await asyncio.sleep_ms(beat)
   
     async def bounce(self,
                      color=(255, 255, 255), bgcolor=(0, 0, 0),
                      cycles=4,
-                     duration=None, pause_ms=25,
-                     start_ms=0, lights=None, **kwargs):
-        await self.wait_for_start(start_ms)
-        if duration is None:
-            duration = cycles * pause_ms * n
-        else:
-            cycles = duration // pause_ms * (n + 1)
+                     duration=None, beat=25,
+                     start=0, lights=None, **kwargs):
+        await self.wait_for_start(start)
         n, lights = self.get_sublights(lights)
+        if duration is None:
+            duration = cycles * beat * n
+        else:
+            cycles = duration // (beat * n)
+        begin_ms = ticks_ms()
 
         while self.running:
+            if ticks_diff(ticks_ms(), begin_ms) > duration:
+                break
             for i in range(cycles * 2 * n):
                 for j in lights:
                     self.np[j] = bgcolor
@@ -119,42 +105,53 @@ class ArtNeoPixel(ArtPart):
                 else:
                     self.np[lights[n - 1 - (i % n)]] = color
                 self.need_update = True
-                await asyncio.sleep_ms(pause_ms)
+                await asyncio.sleep_ms(beat)
 
     async def fade(self,
                    color=(255, 255, 255),
-                   cycles=1, step=8,
-                   duration=None, pause_ms=50, lights=None, **kwargs):
-        n, lights = self.get_sublights(lights)
-        while self.running:
-            for c in range(cycles):
-                for val in range(0, 256, step):
-                    log.info("val={}".format(val))
-                    for j in range(n):
-                        self.np[lights[j]] = [val & v for v in color]
-                    self.need_update = True
-                    await asyncio.sleep_ms(pause_ms)
-                for val in range(255, -1, -step):
-                    log.info("val={}".format(val))
-                    for j in range(n):
-                        self.np[lights[j]] = [val & v for v in color]
-                    self.need_update=True
-                    await asyncio.sleep_ms(pause_ms)
-                for j in range(n):
-                    self.np[lights[j]] = (0, 0, 0)
-                self.need_update = True
-
-
-    async def clear(self,lights=None, start=0):
+                   cycles=1, step=8, beat=30,
+                   duration=None, start=0, lights=None, **kwargs):
         await self.wait_for_start(start)
+        n, lights = self.get_sublights(lights)
+        if duration is None:
+            duration = cycles * beat * n
+        begin_ms = ticks_ms()
+        while self.running and ticks_diff(ticks_ms(), begin_ms) <= duration:
+            log.debug("start fade, ticks==%d", ticks_diff(ticks_ms(), begin_ms))
+            for val in range(0, 256, step):
+                # log.info("val={}".format(val))
+                for j in range(n):
+                    self.np[lights[j]] = [val & v for v in color]
+                self.need_update = True
+                await asyncio.sleep_ms(beat)
+            for val in range(255, -1, -step):
+                # log.info("val={}".format(val))
+                for j in range(n):
+                    self.np[lights[j]] = [val & v for v in color]
+                self.need_update=True
+                await asyncio.sleep_ms(beat)
+            for j in range(n):
+                self.np[lights[j]] = (0, 0, 0)
+            log.debug("stop fade, ticks==%d", ticks_diff(ticks_ms(), begin_ms))
+            self.need_update = True
 
+    async def clear(self,lights=None, start=0, **kwargs):
+        await self.wait_for_start(start)
         if lights is None:
             self.np.fill((0, 0, 0))
         else:
             for i in range(len(lights)):
                 self.np[lights[i]] = (0, 0, 0)
         self.np.write()
-        
+
+    async def stop(self, clear=True, **kwargs):
+        if clear:
+            self.np.fill((0, 0, 0))
+            self.np.write()
+        self.running = False
+        log.info("{}: stopping".format(self.name))
+
+
 async def test():
     np = ArtNeoPixel(15, 30)
     log.info("fade 10-14...")

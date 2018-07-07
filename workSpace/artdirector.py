@@ -110,8 +110,8 @@ class ArtDirector():
         self.parts[self.name + "/" + part.name] = part
         part.director = self
         
-    def list_cmds(self):
-        print("{} parts".format(len(self.parts)))
+    def help(self):
+        print("ArtDirector(name='{}') with {} parts:".format(self.name,len(self.parts)))
         for partname, part in self.parts.items():
             print("PART: {}".format(partname))
             for cmd in part.cmds:
