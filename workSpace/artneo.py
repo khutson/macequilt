@@ -173,7 +173,7 @@ async def test():
 async def simul_test():
     log.info("and now...simultaneously...")
     np = ArtNeoPixel(15, 30, duration=20000)
-    np.effect({'effect': 'random', 'lights': [26, 27, 28, 29], 'brightness': 0.5})
+    np.cmd({'cmd': 'random', 'lights': [26, 27, 28, 29], 'brightness': 0.5})
     loop = asyncio.get_event_loop()
     log.info("fade 0-7...")
     loop.create_task(np.fade(cycles=4, pause_ms=10, color=(255, 0, 0), lights=[i for i in range(8)]))
@@ -199,6 +199,7 @@ def run_tests():
 if __name__ == "__main__":
     run_tests()
     
+
 
 
 

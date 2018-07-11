@@ -83,7 +83,7 @@ class ArtPart():
             log.debug("waiting for %d msecs", delay)
             await asyncio.sleep_ms(delay)
 
-    def cmd(self, e):
+    def cmd(self, e): # xxx add kwargs support
         if 'cmd' not in e or e['cmd'] not in self.cmds:
             log.warning("{}: Command not found".format(self.name))
             log.warning(e)
@@ -100,4 +100,5 @@ class ArtPart():
 if __name__ == '__main__':
     ap = ArtPart(name='test')
     ap.cmd({"cmd":"stop"})
+
 
