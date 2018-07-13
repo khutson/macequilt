@@ -20,12 +20,13 @@ class ArtPart():
         self.director = director
         self.running = True
         loop = asyncio.get_event_loop()
-        loop.create_task(self.update())
+        self.update_coro = loop.create_task(self.update())
 
-    async def update(self, cycles=None):
+    async def update(self, cycles=1):
         cur_cycle = 0
         log.debug("running for %d cycles", cycles)
         self.running = True
+        await asyncio.sleep_ms(0)
         while self.running and (cycles is None or cur_cycle < cycles):
             self.cycle_start = ticks_ms()
             log.debug("starting cycle %d at %d", cur_cycle, self.cycle_start)
@@ -54,6 +55,7 @@ class ArtPart():
             cur_cycle += 1
 
         self.running = False
+        log.debug("exiting update coro at %d",ticks_ms())
 
     def do_update(self):
         # xxx add code to update the part here.
