@@ -2,7 +2,7 @@ import gc
 from mqtt_as import MQTTClient
 from config import config
 import uasyncio as asyncio
-from ucollections import deque
+from ucollections import deque # xxx need to change to uasyncio.queues
 import json
 
 from wificonfig import MQTT_SERVER

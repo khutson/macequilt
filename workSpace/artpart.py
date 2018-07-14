@@ -15,14 +15,22 @@ class ArtPart():
             self.name = name
         self.duration = duration
         self.refresh_rate = 15
+        self.cycle_time = 0
+        self.cycle_start = ticks_ms()
+        self.num_cycles = 1
         self.need_update = True
-        self.cmds = {"stop":self.stop}
+        self.cmds = {"stop": self.stop,
+                     "alive": self.alive}
         self.director = director
         self.running = True
+        self.tasks = []
         loop = asyncio.get_event_loop()
-        self.update_coro = loop.create_task(self.update())
+        self.update_coro = self.update()
+        loop.create_task(self.update_coro)
 
-    async def update(self, cycles=1):
+    async def update(self, cycles=None):
+        if cycles is None:
+            cycles = self.num_cycles
         cur_cycle = 0
         log.debug("running for %d cycles", cycles)
         self.running = True
@@ -32,7 +40,7 @@ class ArtPart():
             log.debug("starting cycle %d at %d", cur_cycle, self.cycle_start)
             while True:
                 self.cycle_time = ticks_diff(ticks_ms(), self.cycle_start)
-                if self.cycle_time > self.duration:
+                if self.duration is not None and self.cycle_time > self.duration:
                     # start the cycle back at 0
                     self.cycle_start = ticks_ms()
                     self.cycle_time = 0
@@ -55,22 +63,21 @@ class ArtPart():
             cur_cycle += 1
 
         self.running = False
+        for t in self.tasks:
+            asyncio.cancel(t)
         log.debug("exiting update coro at %d",ticks_ms())
 
     def do_update(self):
         # xxx add code to update the part here.
         # return False if update successful
-        log.error("update function not implemented")  # remove this line
+        log.warning("update function not implemented")  # remove this line
 
-    def run(self, cycles=1):
+    def run(self):
+        """ run this part only. for dev purposes. normally, the artdirector starts the loop"""
         loop = asyncio.get_event_loop()
-        if self.running:
-            log.debug("asyncio.sleep_ms %d msecs", cycles * self.duration)
-            loop.run_until_complete(asyncio.sleep_ms(cycles * self.duration))
-        else:
-            self.running = True
-            log.debug("starting update task")
-            loop.run_until_complete(self.update(cycles=cycles))
+        self.running = True
+        log.debug("starting update task")
+        loop.run_until_complete(self.update_coro)
 
     async def stop(self):
         self.running = False
@@ -85,18 +92,32 @@ class ArtPart():
             log.debug("waiting for %d msecs", delay)
             await asyncio.sleep_ms(delay)
 
-    def cmd(self, e): # xxx add kwargs support
-        if 'cmd' not in e or e['cmd'] not in self.cmds:
+    def cmd(self, cmd_dict=None, **kwargs):
+        if cmd_dict is None:
+            cmd_dict = kwargs
+        else:
+            cmd_dict = dict(cmd_dict, **kwargs)
+        if 'cmd' not in cmd_dict or cmd_dict['cmd'] not in self.cmds:
             log.warning("{}: Command not found".format(self.name))
-            log.warning(e)
+            log.warning(cmd_dict)
             return
-        cmd_str = e['cmd']
+        cmd_str = cmd_dict['cmd']
         cmd_func = self.cmds[cmd_str]
-        del e['cmd']
+        cmd_task = cmd_func(**cmd_dict)
+
         log.debug("{}: received cmd: {}".format(self.name, cmd_str))
-        log.debug("{}: params: {}".format(self.name, e))
+        log.debug("{}: params: {}".format(self.name, cmd_dict))
         loop = asyncio.get_event_loop()
-        loop.create_task(cmd_func(**e))
+        self.tasks.append(cmd_task)
+        loop.create_task(cmd_task)
+
+    async def alive(self, beat=3000, **kwargs): # xxx why doesn't it cactch the cancellederor'
+        try:
+            while self.running:
+                log.info("%s is alive. cycle_time=%d", self.name, self.cycle_time)
+                await asyncio.sleep_ms(beat)
+        except asyncio.CancelledError:
+                log.debug("alive cancelled")
 
 
 if __name__ == '__main__':
