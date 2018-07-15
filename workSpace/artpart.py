@@ -1,14 +1,32 @@
+# artpart.py
+# copyright 2018 Kent Hutson - MIT License
+
 import uasyncio as asyncio
 from time import ticks_ms, ticks_diff
 import logging
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger("ArtPart")
 
+
+async def _g():
+    pass
+type_coro = type(_g())
+
+# If a callback is passed, run it and return.
+# If a coro is passed initiate it and return.
+# coros are passed by name i.e. not using function call syntax.
+def launch(func, tup_args):
+    res = func(*tup_args)
+    if isinstance(res, type_coro):
+        loop = asyncio.get_event_loop()
+        loop.create_task(res)
+    return res
+
 class ArtPart():
     """base class for logical and physical components of an art project"""
 
     def __init__(self, name=None, duration=None, director=None):
-        """ duration: msec for one cycle. if None, then run forever (e.g. a button)"""
+        """ duration: msec for one cycle/song. if None, then run forever (e.g. a button)"""
         if name is None:
             self.name = "unknown" + str(ticks_ms())
         else:
@@ -24,11 +42,15 @@ class ArtPart():
         self.director = director
         self.running = True
         self.tasks = []
-        loop = asyncio.get_event_loop()
-        self.update_coro = self.update()
-        loop.create_task(self.update_coro)
+        self.update_coro = None
+        self.update_coro = self.start()
 
     async def update(self, cycles=None):
+        """update the part
+        The default method is meant to be used with something that needs refreshing,
+        like lights. Can be overridden for simpler parts. Update is where any action
+        needed by your part should take place. self.update_coro is the instance of the
+        update coroutine - there should only be one update coro running."""
         if cycles is None:
             cycles = self.num_cycles
         cur_cycle = 0
@@ -68,20 +90,41 @@ class ArtPart():
         log.debug("exiting update coro at %d",ticks_ms())
 
     def do_update(self):
-        # xxx add code to update the part here.
-        # return False if update successful
+        #  add code to update the part here.
         log.warning("update function not implemented")  # remove this line
+        return False        # return False if update successful
+
 
     def run(self):
-        """ run this part only. for dev purposes. normally, the artdirector starts the loop"""
+        """ run this part only. for dev purposes. normally, the artdirector starts the loop
+        use self.start() to start/restart the part"""
         loop = asyncio.get_event_loop()
         self.running = True
         log.debug("starting update task")
-        loop.run_until_complete(self.update_coro)
+        log.debug("run: before start self.update_coro: %s", self.update_coro )
+        self.start()
+        log.debug("run: after start self.update_coro: %s", self.update_coro )
+        loop.run_until_complete(asyncio.sleep_ms(self.duration*self.num_cycles+1000))
 
-    async def stop(self):
+    def start(self, restart=False):
+        """ensures that the update coroutine is alive
+        restart: clear all tasks also"""
+        if restart:
+            self.stop()
+        if self.update_coro is None:
+            loop = asyncio.get_event_loop()
+            self.update_coro = self.update()
+            loop.create_task(self.update_coro)
+        log.debug("self.update_coro: %s", self.update_coro )
+
+    def stop(self):
         self.running = False
         log.info("{}: stopping".format(self.name))
+        while self.tasks:
+            asyncio.cancel(self.tasks.pop())
+        if self.update_coro:
+            asyncio.cancel(self.update_coro)
+        self.update_coro = None
 
     async def wait_for_start(self, start=None):
         if start is None or start <= 0:
@@ -107,9 +150,10 @@ class ArtPart():
 
         log.debug("{}: received cmd: {}".format(self.name, cmd_str))
         log.debug("{}: params: {}".format(self.name, cmd_dict))
-        loop = asyncio.get_event_loop()
+        # loop = asyncio.get_event_loop()
         self.tasks.append(cmd_task)
-        loop.create_task(cmd_task)
+        # loop.create_task(cmd_task)
+        launch(cmd_func, cmd_dict)
 
     async def alive(self, beat=3000, **kwargs): # xxx why doesn't it cactch the cancellederor'
         try:
@@ -119,9 +163,16 @@ class ArtPart():
         except asyncio.CancelledError:
                 log.debug("alive cancelled")
 
+def test():
+    duration = 10000
+    print("TEST: test artpart with duration %d",duration)
+    ap = ArtPart(name='test',duration=duration)
+    ap.cmd(cmd="alive")
+    print("TEST: running alive")
+    ap.run()
+    print("TEST:canceling alive")
+    asyncio.cancel(ap.tasks[0])
+    ap.run()
 
 if __name__ == '__main__':
-    ap = ArtPart(name='test')
-    ap.cmd({"cmd":"stop"})
-
-
+    test()
