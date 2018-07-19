@@ -1,30 +1,19 @@
-# artpart.py
+# artcycle.py
 # copyright 2018 Kent Hutson - MIT License
 #
-# base artpart class
+# subclass of artpart that implements cycling.
+# Track time in the cycle so that functions that depend on time
+# are more easily implemented
 
 import uasyncio as asyncio
 from time import ticks_ms, ticks_diff
+from artpart import ArtPart, launch
 import logging
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger("ArtPart")
 
 
-async def _g():
-    pass
-type_coro = type(_g())
-
-# If a callback is passed, run it and return.
-# If a coro is passed initiate it and return.
-# coros are passed by name i.e. not using function call syntax.
-def launch(func, tup_args):
-    res = func(*tup_args)
-    if isinstance(res, type_coro):
-        loop = asyncio.get_event_loop()
-        loop.create_task(res)
-    return res
-
-class ArtPart():
+class ArtCycle(ArtPart):
     """base class for logical and physical components of an art project"""
 
     def __init__(self, name=None, duration=None, director=None):
@@ -159,14 +148,13 @@ class ArtPart():
         # loop.create_task(cmd_task)
         launch(cmd_func, cmd_dict)
 
-    async def alive(self, beat=1000, **kwargs): # xxx why doesn't it cactch the cancellederor'
+    async def alive(self, beat=3000, **kwargs): # xxx why doesn't it cactch the cancellederor'
         try:
             while self.running:
                 log.info("%s is alive. cycle_time=%d", self.name, self.cycle_time)
                 await asyncio.sleep_ms(beat)
-        except Exception as e:
-            log.debug(e)
-            # log.debug("alive cancelled")
+        except asyncio.CancelledError:
+                log.debug("alive cancelled")
 
 def test():
     duration = 10000
