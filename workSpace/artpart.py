@@ -27,14 +27,15 @@ def launch(func, tup_args):
 class ArtPart():
     """base class for logical and physical components of an art project"""
 
-    def __init__(self, name=None, duration=None, director=None):
+    def __init__(self, name=None, duration=None, director=None, refresh_rate=15):
         """ duration: msec for one cycle/song. if None, then run forever (e.g. a button)"""
         if name is None:
             self.name = "unknown" + str(ticks_ms())
         else:
             self.name = name
+        self.is_alive = True
         self.duration = duration
-        self.refresh_rate = 15
+        self.refresh_rate = refresh_rate
         self.cycle_time = 0
         self.cycle_start = ticks_ms()
         self.num_cycles = 1
@@ -47,49 +48,56 @@ class ArtPart():
         self.update_coro = None
         self.update_coro = self.start()
 
-    async def update(self, cycles=None):
+    async def update(self):
         """update the part
         The default method is meant to be used with something that needs refreshing,
         like lights. Can be overridden for simpler parts. Update is where any action
         needed by your part should take place. self.update_coro is the instance of the
         update coroutine - there should only be one update coro running."""
-        if cycles is None:
-            cycles = self.num_cycles
+        if self.num_cycles is None:
+            self.num_cycles = 1
         cur_cycle = 0
-        log.debug("running for %d cycles", cycles)
+        log.debug("running for %d cycles", self.num_cycles)
         self.running = True
         await asyncio.sleep_ms(0)
-        while True: # self.running and ((cycles is None) or (cur_cycle < cycles)):
+        while self.is_alive:
+            if not self.running:
+                cur_cycle = 0
+                await asyncio.sleep_ms(200)
+                continue
             self.cycle_start = ticks_ms()
             log.debug("starting cycle %d at %d", cur_cycle, self.cycle_start)
-            while True:
+            while self.running:
+                log.debug("update running: duration={}, cycle_time={},cycle_start={}".format(
+                    self.duration, self.cycle_time, self.cycle_start))
                 self.cycle_time = ticks_diff(ticks_ms(), self.cycle_start)
                 if self.duration is not None and self.cycle_time > self.duration:
                     # start the cycle back at 0
+                    log.debug("end of cycle %d", cur_cycle)
                     self.cycle_start = ticks_ms()
                     self.cycle_time = 0
+                    cur_cycle += 1
 
-                    log.debug("duration={}, cycle_time={},cycle_start={}".format(
-                              self.duration, self.cycle_time, self.cycle_start))
+                    # log.debug("duration={}, cycle_time={},cycle_start={}".format(
+                    #           self.duration, self.cycle_time, self.cycle_start))
 
                     break
                 if self.refresh_rate < 0:
                     await asyncio.sleep_ms(200)
                 else:
-                    log.debug("duration={}, cycle_time={},cycle_start={}".format(
-                              self.duration, self.cycle_time, self.cycle_start))
                     if self.need_update:
                         self.need_update = self.do_update()
                     await asyncio.sleep_ms(self.refresh_rate)
-            log.debug("duration={}, cycle_time={},cycle_start={}".format(
+            else:
+                cur_cycle = 0
+        log.debug("update stopped: duration={}, cycle_time={},cycle_start={}".format(
                 self.duration, self.cycle_time, self.cycle_start))
-            log.debug("end of cycle %d", cur_cycle)
-            cur_cycle += 1
 
         self.running = False
         for t in self.tasks:
+            await asyncio.sleep_ms(0)
             asyncio.cancel(t)
-        log.debug("exiting update coro at %d",ticks_ms())
+        log.debug("exiting update coro at %d", ticks_ms())
 
     def do_update(self):
         #  add code to update the part here.
@@ -121,14 +129,14 @@ class ArtPart():
         log.debug("start: self.update_coro: %s", self.update_coro )
         return self.update_coro
 
-    def stop(self):
+    async def stop(self):
         self.running = False
         log.info("{}: stopping".format(self.name))
+        await asyncio.sleep_ms(0)
         while self.tasks:
             asyncio.cancel(self.tasks.pop())
-        if self.update_coro:
-            asyncio.cancel(self.update_coro)
-        self.update_coro = None
+            await asyncio.sleep_ms(0)
+
 
     async def wait_for_start(self, start=None):
         if start is None or start <= 0:
@@ -159,25 +167,21 @@ class ArtPart():
         # loop.create_task(cmd_task)
         launch(cmd_func, cmd_dict)
 
-    async def alive(self, beat=1000, **kwargs): # xxx why doesn't it cactch the cancellederor'
-        try:
-            while self.running:
-                log.info("%s is alive. cycle_time=%d", self.name, self.cycle_time)
-                await asyncio.sleep_ms(beat)
-        except Exception as e:
-            log.debug(e)
-            # log.debug("alive cancelled")
+    async def alive(self, beat=1000, **kwargs):
+        while self.running:
+            log.info("%s is alive. cycle_time=%d", self.name, self.cycle_time)
+            await asyncio.sleep_ms(beat)
 
 def test():
     duration = 10000
-    print("TEST: test artpart with duration {}", duration)
-    ap = ArtPart(name='test', duration=duration)
+    print("TEST: test artpart with duration %d", duration)
+    ap = ArtPart(name='test',duration=duration)
     ap.cmd(cmd="alive")
     print("TEST: running alive")
     ap.run()
     # print("TEST:canceling alive")
-    # asyncio.cancel(ap.tasks[0])
-    # ap.run()
+    ap.cmd(cmd="stop")
+    ap.run()
 
 if __name__ == '__main__':
     test()
