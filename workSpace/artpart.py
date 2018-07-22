@@ -6,7 +6,7 @@
 import uasyncio as asyncio
 from time import ticks_ms, ticks_diff
 import logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("ArtPart")
 
 
@@ -17,8 +17,8 @@ type_coro = type(_g())
 # If a callback is passed, run it and return.
 # If a coro is passed initiate it and return.
 # coros are passed by name i.e. not using function call syntax.
-def launch(func, tup_args):
-    res = func(*tup_args)
+def launch(func, **kwargs):
+    res = func(**kwargs)
     if isinstance(res, type_coro):
         loop = asyncio.get_event_loop()
         loop.create_task(res)
@@ -86,7 +86,7 @@ class ArtPart():
                     await asyncio.sleep_ms(200)
                 else:
                     if self.need_update:
-                        self.need_update = self.do_update()
+                        self.need_update = not self.do_update()
                     await asyncio.sleep_ms(self.refresh_rate)
             else:
                 cur_cycle = 0
@@ -102,20 +102,24 @@ class ArtPart():
     def do_update(self):
         #  add code to update the part here.
         log.warning("update function not implemented")  # remove this line
-        return False        # return False if update successful
+        return False        # return True if update successful
 
-
-    def run(self):
+    def run(self, num_cycles=None):
         """ run this part only. for dev purposes. normally, the artdirector starts the loop
         use self.start() to start/restart the part"""
+        if num_cycles is not None:
+            self.num_cycles = num_cycles
         loop = asyncio.get_event_loop()
         self.running = True
         log.debug("starting update task")
         log.debug("run: before start self.update_coro: %s", self.update_coro )
         self.start()
         log.debug("run: after start self.update_coro: %s", self.update_coro )
-        # loop.run_until_complete(asyncio.sleep_ms(self.duration*self.num_cycles+1000))
-        loop.run_until_complete(asyncio.sleep(15))
+        runtime = self.duration*self.num_cycles+1000
+        log.info("start run with duration %d for %d cycles at %d", self.duration, self.num_cycles, ticks_ms())
+        loop.run_until_complete(asyncio.sleep(runtime/1000+1))
+        log.info("ended run for %d cycles at %d", self.num_cycles, ticks_ms())
+        # loop.run_until_complete(asyncio.sleep(15))
 
     def start(self, restart=False):
         """ensures that the update coroutine is alive
@@ -129,7 +133,7 @@ class ArtPart():
         log.debug("start: self.update_coro: %s", self.update_coro )
         return self.update_coro
 
-    async def stop(self):
+    async def stop(self, **kwargs):
         self.running = False
         log.info("{}: stopping".format(self.name))
         await asyncio.sleep_ms(0)
@@ -162,26 +166,29 @@ class ArtPart():
 
         log.debug("{}: received cmd: {}".format(self.name, cmd_str))
         log.debug("{}: params: {}".format(self.name, cmd_dict))
-        # loop = asyncio.get_event_loop()
         self.tasks.append(cmd_task)
-        # loop.create_task(cmd_task)
-        launch(cmd_func, cmd_dict)
+        loop = asyncio.get_event_loop()
+        loop.create_task(cmd_task)
+        # launch(cmd_func, cmd_dict)
 
     async def alive(self, beat=1000, **kwargs):
         while self.running:
+            # print("{} is alive".format(self.name))
             log.info("%s is alive. cycle_time=%d", self.name, self.cycle_time)
             await asyncio.sleep_ms(beat)
 
 def test():
     duration = 10000
-    print("TEST: test artpart with duration %d", duration)
-    ap = ArtPart(name='test',duration=duration)
+    cycles = 3
+    print("TEST: test artpart with duration {}, cycles={}".format(duration, cycles))
+    ap = ArtPart(name='test',duration=duration, refresh_rate=500)
     ap.cmd(cmd="alive")
     print("TEST: running alive")
-    ap.run()
+    ap.run(cycles)
     # print("TEST:canceling alive")
-    ap.cmd(cmd="stop")
-    ap.run()
+    # ap.cmd(cmd="stop")
+    # ap.run()
+    return ap
 
 if __name__ == '__main__':
-    test()
+    ap = test()
