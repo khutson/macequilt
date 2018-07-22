@@ -6,6 +6,12 @@ async def hello():
         await asyncio.sleep(1)
 
 loop = asyncio.get_event_loop()
-loop.run_until_complete(hello())  
+
+hellofunc = hello()
+loop.create_task(hellofunc)
+
+loop.run_until_complete(asyncio.sleep_ms(15000))
+
+# loop.run_until_complete(hellofunc)
 
 

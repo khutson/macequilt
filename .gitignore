@@ -100,4 +100,7 @@ ENV/
 # mypy
 .mypy_cache/
 
-workspace/wificonfig.py
+
+ESPlorer.Log*
+workSpace/.idea/
+
